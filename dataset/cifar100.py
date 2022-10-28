@@ -22,13 +22,7 @@ def get_data_folder():
     """
     return server-dependent path to store the data
     """
-    hostname = socket.gethostname()
-    if hostname.startswith('visiongpu'):
-        data_folder = '/data/vision/phillipi/rep-learn/datasets'
-    elif hostname.startswith('yonglong-home'):
-        data_folder = '/home/yonglong/Data/data'
-    else:
-        data_folder = './data/'
+    data_folder = './data/'
 
     if not os.path.isdir(data_folder):
         os.makedirs(data_folder)
@@ -183,8 +177,50 @@ class CIFAR100InstanceSample(datasets.CIFAR100):
             return img, target, index, sample_idx
 
 
+class CIFAR100UnlabeledInstanceSample(datasets.CIFAR100):
+    """
+    CIFAR100Instance+Sample Dataset
+    """
+
+    def __init__(self, root, train=True,
+                 transform=None, target_transform=None,
+                 download=False, k=4096, mode='exact', is_sample=True, portion=1.0):
+        super().__init__(root=root, train=train, download=download,
+                         transform=transform, target_transform=target_transform)
+        self.k = k
+        self.mode = mode
+        self.is_sample = is_sample
+
+        self.num_samples = int(len(self.data) * portion)
+        self.targets = self.targets[:self.num_samples]
+
+    def __len__(self):
+        return len(self.targets)
+
+    def __getitem__(self, index):
+        img, target = self.data[index], self.targets[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        pos_idx = index
+        replace = True if self.k > self.num_samples else False
+        negatives = [i for i in range(self.num_samples)]
+        negatives.remove(index)
+        neg_idx = np.random.choice(negatives, self.k, replace=replace)
+        sample_idx = np.hstack((np.asarray([pos_idx]), neg_idx))
+        return img, target, index, sample_idx
+
+
 def get_cifar100_dataloaders_sample(batch_size=128, num_workers=8, k=4096, mode='exact',
-                                    is_sample=True, percent=1.0):
+                                    is_sample=True, percent=1.0, is_labeled=False):
     """
     cifar 100
     """
@@ -201,14 +237,23 @@ def get_cifar100_dataloaders_sample(batch_size=128, num_workers=8, k=4096, mode=
         transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
     ])
 
-    train_set = CIFAR100InstanceSample(root=data_folder,
-                                       download=True,
-                                       train=True,
-                                       transform=train_transform,
-                                       k=k,
-                                       mode=mode,
-                                       is_sample=is_sample,
-                                       percent=percent)
+    if is_labeled:
+        train_set = CIFAR100InstanceSample(root=data_folder,
+                                           download=True,
+                                           train=True,
+                                           transform=train_transform,
+                                           k=k,
+                                           mode=mode,
+                                           is_sample=is_sample,
+                                           percent=percent)
+    else:
+        train_set = CIFAR100UnlabeledInstanceSample(root=data_folder,
+                                           download=True,
+                                           train=True,
+                                           transform=train_transform,
+                                           k=k,
+                                           mode=mode,
+                                           is_sample=is_sample)
     n_data = len(train_set)
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,

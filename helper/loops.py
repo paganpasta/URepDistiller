@@ -122,7 +122,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
 
         # other kd beyond KL divergence
         if opt.distill == 'kd':
-            loss_kd = 0
+            loss_kd = loss_div  #So that we only use opt.beta
         elif opt.distill == 'hint':
             f_s = module_list[1](feat_s[opt.hint_layer])
             f_t = feat_t[opt.hint_layer]
@@ -178,6 +178,10 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             factor_s = module_list[1](feat_s[-2])
             factor_t = module_list[2](feat_t[-2], is_factor=True)
             loss_kd = criterion_kd(factor_s, factor_t)
+        elif opt.distill in ['dino', 'cos_pre', 'cos_post', 'coss_pre', 'coss_post']:
+            f_s = feat_s[-1]
+            f_t = feat_t[-1]
+            loss_kd = criterion_kd(f_s, f_t)
         else:
             raise NotImplementedError(opt.distill)
 
