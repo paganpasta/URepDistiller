@@ -305,15 +305,11 @@ def main():
         time2 = time.time()
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
-        wandb_logger.log('train/acc', train_acc, epoch)
-        wandb_logger.log_value('train/loss', train_loss, epoch)
-
-        # Not to be used for reporting accuracies!
-        test_acc, _, test_loss = validate(val_loader, model_s, criterion_cls, opt)
-
-        wandb_logger.log('test/acc', test_acc, epoch)
-        wandb_logger.log('test/loss', test_loss, epoch)
-
+        epoch_stats = {
+            'train/acc': train_acc,
+            'train/loss': train_loss,
+        }
+        wandb_logger.log(epoch_stats, step=epoch)
         # save model
         state = {
             'epoch': epoch,
