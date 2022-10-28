@@ -74,7 +74,7 @@ def parse_option():
     parser.add_argument('--kd_T', type=float, default=4, help='temperature for KD distillation')
 
     # CoSS weight
-    parser.add_argument('--cos_w', type=float, default=1.0, help='Weight for space contribution to CoSS')
+    parser.add_argument('--w_cos', type=float, default=1.0, help='Weight for space contribution to CoSS')
 
     # NCE distillation
     parser.add_argument('--feat_dim', default=128, type=int, help='feature dimension')
