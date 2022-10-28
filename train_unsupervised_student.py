@@ -64,9 +64,12 @@ def parse_option():
     # distillation
     parser.add_argument('--distill', type=str, default='kd', choices=['kd', 'hint', 'attention', 'similarity',
                                                                       'correlation', 'vid', 'crd', 'kdsvd', 'fsp',
-                                                                      'rkd', 'pkt', 'abound', 'factor', 'nst', 'dino'])
+                                                                      'rkd', 'pkt', 'abound', 'factor', 'nst', 'dino',
+                                                                      'coss_pre', 'coss_post', 'cos_pre', 'cos_post'])
     parser.add_argument('-b', '--beta', type=float, default=None, help='weight for the loss')
-
+    #Coss and DINO
+    parser.add_argument('--t-temp', type=float, default=0.02, help='teacher temperature for KD distillation')
+    parser.add_argument('--s-temp', type=float, default=0.7, help='student temperature for KD distillation')
     # KL distillation
     parser.add_argument('--kd_T', type=float, default=4, help='temperature for KD distillation')
 
