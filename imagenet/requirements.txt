@@ -1,6 +1,5 @@
 django
 termcolor
 tqdm
-tensorboard
-tensorboardX
+wandb
 PyYAML
