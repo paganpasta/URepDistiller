@@ -33,24 +33,16 @@ parser.add_argument('--weight-decay', type=float, default=5e-4)
 parser.add_argument('--milestones', type=int, nargs='+', default=[50, 70, 90])
 
 parser.add_argument('--arch', choices=list(model_dict.keys()), type=str)  # student architecture
-parser.add_argument('--weights', type=str)
+parser.add_argument('--wandb-path', type=str, help='in format user/wandbproject/id/.../')
+parser.add_argument('--filename', type=str, default='last.pth', help='existing weights to load')
 parser.add_argument('--gpu-id', type=int, default=0)
-
 parser.add_argument('--key', default=None, help='wandb API key')
-parser.add_argument('--id', default=None, help='id of an existing wandb run')
 
 args = parser.parse_args()
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 np.random.seed(0)
 os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)
-
-exp_path = os.path.dirname(args.weights) + '/model.lincls'
-
-wandb.login(key=args.key)
-wandb_logger = wandb.init(
-    id = args.wandb_id, resume="must"
-)
 
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
@@ -69,11 +61,18 @@ print('Num training samples', len(train_subset), 'vs total training available of
 train_loader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True, num_workers=16, pin_memory=False)
 val_loader = DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_workers=16, pin_memory=False)
 
+
+# exp_path = os.path.dirname(args.weights) + '/model.lincls'
 model = model_dict[args.arch](num_classes=100).cuda()
-try:
-    state_dict = torch.load(args.weights)['model']
-except:
-    state_dict = torch.load(args.weights)['state_dict']
+# try:
+#     state_dict = torch.load(args.weights)['model']
+# except:
+#     state_dict = torch.load(args.weights)['state_dict']
+wandb.login(key=args.key)
+wandb_logger = wandb.init(
+    id=args.wandb_path.split('/')[2], resume="must"
+)
+state_dict = wandb.restore(args.filename, run_path=args.wandb_path)['model']
 
 new_dict = OrderedDict()
 for k, v in state_dict.items():
@@ -161,7 +160,7 @@ for epoch in range(args.epoch):
     if acc_record.avg > best_acc:
         best_acc = acc_record.avg
         state_dict = dict(epoch=epoch + 1, state_dict=model.state_dict(), loss=loss_record.avg, acc=acc_record.avg)
-        torch.save(state_dict, exp_path)
-        wandb.save(exp_path)
+        torch.save(state_dict, os.path.join(wandb.run.dir, "model.lincls"))
+        wandb.save(os.path.join(wandb.run.dir, "model.lincls"))
     scheduler.step()
 
