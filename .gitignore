@@ -1,6 +1,9 @@
+../.idea/
 .idea/
-data/
-output*/
+cifar/data/
+cifar/output*/
+imagenet/data/
+imagenet/output*/
 ckpts/
 *.pth
 *.t7
@@ -115,9 +118,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-
-# outputs
-outputs/
 
 # wandb
 .wandb
