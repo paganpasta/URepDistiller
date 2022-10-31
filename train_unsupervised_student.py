@@ -42,8 +42,6 @@ def parse_option():
     parser.add_argument('--init_epochs', type=int, default=30, help='init training for two-stage methods')
 
     # Logging
-    parser.add_argument('--output-path', type=str, default='./outputs/', help='base output dir')
-    parser.add_argument('--trial', type=str, default='1', help='trial id')
     parser.add_argument('--key', type=str, default=None, help='wandb key')
 
     # optimization
@@ -74,7 +72,7 @@ def parse_option():
     parser.add_argument('--kd_T', type=float, default=4, help='temperature for KD distillation')
 
     # CoSS weight
-    parser.add_argument('--w_cos', type=float, default=1.0, help='Weight for space contribution to CoSS')
+    parser.add_argument('--w_cos', type=float, default=None, help='Weight for space contribution to CoSS')
 
     # NCE distillation
     parser.add_argument('--feat_dim', default=128, type=int, help='feature dimension')
@@ -96,10 +94,6 @@ def parse_option():
     opt.gamma = 0.0
     opt.alpha = 0.0
 
-    # set the path according to the environment
-    opt.model_name = 'Beta-{}_Trial-{}'.format(opt.beta, opt.trial)
-    opt.output_path = os.path.join(opt.output_path, opt.dataset, opt.model_t, opt.model_s, opt.distill, opt.model_name)
-
     iterations = opt.lr_decay_epochs.split(',')
     opt.lr_decay_epochs = list([])
     for it in iterations:
@@ -110,11 +104,6 @@ def parse_option():
         project="UKD", entity="paganpasta",
         tags=[opt.distill, opt.model_t, opt.model_s], group='CIFAR100', config=opt
     )
-
-    if not os.path.isdir(opt.output_path):
-        os.makedirs(opt.output_path)
-    else:
-        raise FileExistsError('Resuming functionality not yet implemented!')
 
     return opt, wandb_logger
 
@@ -316,7 +305,7 @@ def main():
             'opt': opt,
             'model': model_s.state_dict(),
         }
-        save_file = os.path.join(opt.output_path, 'last.pth')
+        save_file = os.path.join(wandb.run.dir, 'last.pth')
         torch.save(state, save_file)
         wandb.save(save_file)
 
