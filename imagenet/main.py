@@ -162,8 +162,6 @@ def main(args):
                 'optimizer': optimizer.state_dict(),
             }, filename=args.resume)
 
-            logger.info('==============> checkpoint saved to {}'.format(args.save))
-
 
 def train(train_loader, model, criterion, optimizer, epoch, args, logger):
     batch_time = AverageMeter('Batch Time', ':5.3f')
