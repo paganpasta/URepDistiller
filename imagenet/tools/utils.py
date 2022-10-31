@@ -198,25 +198,27 @@ def init_wandb(args):
     is_resume = False
     if os.path.exists(args.output):
         is_resume = "must",
-        run_id = open(f"{args.output}/run.id").read()
+        run_id = open(f"{args.output}/run.id", 'r').read()
     else:
         os.makedirs(args.output, exist_ok=True)
         run_id = wandb.util.generate_id()
-        open(f'{args.output}/run.id').write(run_id)
 
     wandb_logger = None
     if args.distributed and dist.get_rank() == 0:
         wandb.login(key=os.getenv('KEY'))
         wandb_logger = wandb.init(
-            project=os.getenv('PROJECT'), entity=os.getenv('ENTITY'), resume=is_resume, run_id=run_id,
+            project=os.getenv('PROJECT'), entity=os.getenv('ENTITY'), resume=is_resume, id=run_id,
             tags=[args.method, args.student_arch, args.teacher_arch], group='IMAGENET', config=args
         )
+        open(f'{args.output}/run.id', 'w').write(run_id)
     elif not args.distributed:
         wandb.login(key=os.getenv('KEY'))
         wandb_logger = wandb.init(
-            project=os.getenv('PROJECT'), entity=os.getenv('ENTITY'), resume=is_resume, run_id=run_id,
+            project=os.getenv('PROJECT'), entity=os.getenv('ENTITY'), resume=is_resume, id=run_id,
             tags=[args.method, args.student_arch, args.teacher_arch], group='IMAGENET', config=args
         )
+        open(f'{args.output}/run.id', 'w').write(run_id)
+
     return wandb_logger
 
 
