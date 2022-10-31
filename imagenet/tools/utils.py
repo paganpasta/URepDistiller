@@ -200,6 +200,7 @@ def init_wandb(args):
         is_resume = "must",
         run_id = open(f"{args.output}/run.id").read()
     else:
+        os.makedirs(args.output, exist_ok=True)
         run_id = wandb.util.generate_id()
         open(f'{args.output}/run.id').write(run_id)
 

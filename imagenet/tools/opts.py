@@ -66,7 +66,7 @@ def parse_opt():
 
     parser.add_argument('-b',
                         '--batch-size',
-                        default=4,
+                        default=256,
                         type=int,
                         metavar='N',
                         help='mini-batch size (default: 256)')
@@ -123,11 +123,6 @@ def parse_opt():
                         default=None,
                         type=int,
                         help='seed for initializing training.')
-
-    parser.add_argument('--trial',
-                        default=None,
-                        type=int,
-                        help='trial id for logging wandb locally.')
 
 
     parser.add_argument('--info',

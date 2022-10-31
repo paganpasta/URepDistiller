@@ -23,7 +23,7 @@ model_names = sorted(name for name in models.__dict__
 
 
 def main(args):
-    os.makedirs(args.output, exist_ok=True)
+
     args.method = 'seed'
     args.resume = os.path.join(args.output, 'last.pth')
 

@@ -3,3 +3,4 @@ termcolor
 tqdm
 wandb
 PyYAML
+python-dotenv
