@@ -33,8 +33,8 @@ parser.add_argument('--weight-decay', type=float, default=5e-4)
 parser.add_argument('--milestones', type=int, nargs='+', default=[50, 70, 90])
 
 parser.add_argument('--arch', choices=list(model_dict.keys()), type=str)  # student architecture
-parser.add_argument('--wandb-path', type=str, help='in format user/wandbproject/id/.../')
-parser.add_argument('--filename', type=str, default='last.pth', help='existing weights to load')
+parser.add_argument('--wandb-path', type=str, help='in format user/wandbproject/id')
+parser.add_argument('--filename', type=str, default='outputs/.../.../last.pth', help='existing weights to load')
 parser.add_argument('--gpu-id', type=int, default=0)
 parser.add_argument('--key', default=None, help='wandb API key')
 
@@ -72,7 +72,7 @@ wandb.login(key=args.key)
 wandb_logger = wandb.init(
     id=args.wandb_path.split('/')[2], project=args.wandb_path.split('/')[1], resume="must"
 )
-state_dict = wandb.restore(args.filename, run_path=args.wandb_path)['model']
+state_dict = torch.load(wandb.restore(args.filename, run_path=args.wandb_path).name)['model']
 
 new_dict = OrderedDict()
 for k, v in state_dict.items():
