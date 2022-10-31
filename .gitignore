@@ -4,6 +4,9 @@ cifar/data/
 cifar/output*/
 imagenet/data/
 imagenet/output*/
+cifar/.env
+imagenet/.env
+
 ckpts/
 *.pth
 *.t7
