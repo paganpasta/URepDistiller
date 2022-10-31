@@ -9,14 +9,15 @@ import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
-
 import torchvision.transforms as transforms
-
 from helper.util import accuracy, AverageMeter
-
 from torchvision.datasets import CIFAR100
 
 from models import model_dict
+
+
+from dotenv import load_dotenv
+load_dotenv()
 
 torch.backends.cudnn.benchmark = True
 
@@ -68,9 +69,9 @@ model = model_dict[args.arch](num_classes=100).cuda()
 #     state_dict = torch.load(args.weights)['model']
 # except:
 #     state_dict = torch.load(args.weights)['state_dict']
-wandb.login(key=args.key)
+wandb.login(key=os.getenv('KEY'))
 wandb_logger = wandb.init(
-    id=args.wandb_path.split('/')[2], project=args.wandb_path.split('/')[1], resume="must"
+    id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume="must"
 )
 state_dict = torch.load(wandb.restore(args.filename, run_path=args.wandb_path).name)['model']
 

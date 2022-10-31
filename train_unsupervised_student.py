@@ -30,6 +30,8 @@ from crd.criterion import CRDLoss
 from helper.loops import train_distill as train, validate
 from helper.pretrain import init
 
+from dotenv import load_dotenv
+load_dotenv()
 
 def parse_option():
 
@@ -40,9 +42,6 @@ def parse_option():
     parser.add_argument('--num_workers', type=int, default=16, help='num of workers to use')
     parser.add_argument('--epochs', type=int, default=240, help='number of training epochs')
     parser.add_argument('--init_epochs', type=int, default=30, help='init training for two-stage methods')
-
-    # Logging
-    parser.add_argument('--key', type=str, default=None, help='wandb key')
 
     # optimization
     parser.add_argument('--learning_rate', type=float, default=0.05, help='learning rate')
@@ -99,9 +98,9 @@ def parse_option():
     for it in iterations:
         opt.lr_decay_epochs.append(int(it))
 
-    wandb.login(key=opt.key)
+    wandb.login(key=os.getenv('KEY'))
     wandb_logger = wandb.init(
-        project="UKD", entity="paganpasta",
+        project=os.getenv('PROJECT'), entity=os.getenv('ENTITY'),
         tags=[opt.distill, opt.model_t, opt.model_s], group='CIFAR100', config=opt
     )
 
