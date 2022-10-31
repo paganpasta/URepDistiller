@@ -70,7 +70,7 @@ model = model_dict[args.arch](num_classes=100).cuda()
 #     state_dict = torch.load(args.weights)['state_dict']
 wandb.login(key=args.key)
 wandb_logger = wandb.init(
-    id=args.wandb_path.split('/')[2], resume="must"
+    id=args.wandb_path.split('/')[2], project=args.wandb_path.split('/')[1], resume="must"
 )
 state_dict = wandb.restore(args.filename, run_path=args.wandb_path)['model']
 
