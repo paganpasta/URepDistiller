@@ -26,6 +26,8 @@ def main(args):
 
     args.method = 'seed'
     args.resume = os.path.join(args.output, 'last.pth')
+    # saving WANDB
+    wandb_logger = init_wandb(args)
 
     if args.distributed:
         torch.cuda.set_device(args.local_rank)
@@ -47,8 +49,6 @@ def main(args):
 
         logger.info('Single GPU mode for debugging.')
 
-    # saving WANDB
-    wandb_logger = init_wandb(args)
 
     # create model
     logger.info("=> creating student encoder '{}'".format(args.student_arch))
