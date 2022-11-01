@@ -40,7 +40,7 @@ def parse_opt():
 
     parser.add_argument('-s',
                         '--teacher_ssl',
-                        default='simclr',
+                        default='moco',
                         choices=['simclr', 'moco', 'swav'],
                         help='choose the ssl pre-trained method.'
                              ' Currently supporting SimLR, MoCo and SWAV')
@@ -112,49 +112,30 @@ def parse_opt():
                         help='path to latest checkpoint (default: none)')
 
     parser.add_argument('--distill',
-                        # default='/media/drive2/Unsupervised_Learning/moco_distill/output/moco-v2-checkpoint_0199.pth.tar',
-                        default='/media/drive2/Unsupervised_Learning/moco_distill/output/simclr_200.pth',
-                        # default='/media/drive2/Unsupervised_Learning/moco_distill/output/swav_400ep_pretrain.pth.tar',
+                        default=None,
                         type=str,
                         metavar='PATH',
                         help='path to teacher distillation model.')
+
     parser.add_argument('--seed',
                         default=None,
                         type=int,
                         help='seed for initializing training.')
 
-
-    parser.add_argument('--info',
-                        default='',
-                        type=str,
-                        metavar='PATH',
-                        help='path to latest checkpoint (default: none)')
-
-    # model specific configs:
-    parser.add_argument('--dim',
-                        default=128,
-                        type=int,
-                        help='feature dimension (default: 128)')
-
-    parser.add_argument('--queue',
-                        default=65536,
-                        type=int,
-                        help='queue size; number of negative keys (default: 65536)')
-
-    parser.add_argument('--temp',
-                        default=0.2,
-                        type=float,
-                        help='softmax temperature (default: 0.2)')
-
-    parser.add_argument('--distill-t',
-                        default=1e-4,
+    parser.add_argument('--t-temp',
+                        default=0.02,
                         type=float,
                         help='softmax temperature for distillation (default: 1e-4)')
 
-    parser.add_argument('--student_mlp',
-                        default=True,
-                        type=bool,
-                        help='use mlp head')
+    parser.add_argument('--s-temp',
+                        default=0.7,
+                        type=float,
+                        help='softmax temperature for distillation (default: 1e-4)')
+
+    parser.add_argument('--method',
+                        default=None,
+                        choices=['coss', 'cos', 'dino'],
+                        help='Loss method to use for distillation.')
 
     parser.add_argument('--cos',
                         default=True,

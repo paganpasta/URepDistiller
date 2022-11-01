@@ -15,7 +15,6 @@ from torchvision.datasets import CIFAR100
 
 from models import model_dict
 
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -61,13 +60,7 @@ print('Num training samples', len(train_subset), 'vs total training available of
 train_loader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True, num_workers=16, pin_memory=False)
 val_loader = DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_workers=16, pin_memory=False)
 
-
-# exp_path = os.path.dirname(args.weights) + '/model.lincls'
 model = model_dict[args.arch](num_classes=100).cuda()
-# try:
-#     state_dict = torch.load(args.weights)['model']
-# except:
-#     state_dict = torch.load(args.weights)['state_dict']
 wandb.login(key=os.getenv('KEY'))
 wandb_logger = wandb.init(
     id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume="must"
@@ -163,4 +156,4 @@ for epoch in range(args.epoch):
         torch.save(state_dict, os.path.join(wandb.run.dir, "model.lincls"))
         wandb.save(os.path.join(wandb.run.dir, "model.lincls"))
     scheduler.step()
-
+wandb.log({'EVAL/BEST': best_acc}, step=epoch)

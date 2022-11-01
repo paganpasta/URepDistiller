@@ -12,7 +12,7 @@ class Wrapper(nn.Module):
         student.fc = nn.Identity()
 
         self.backbone = student
-        print(self.t_dims, self.s_dims, 'teacher-student hidden dims. and use_proj')
+        print(self.t_dims, self.s_dims, 'teacher-student hidden dims')
         if self.t_dims != self.s_dims:
             self.proj_head = nn.Sequential(
                 nn.Linear(self.s_dims, self.t_dims),
