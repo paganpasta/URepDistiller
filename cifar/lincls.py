@@ -156,4 +156,4 @@ for epoch in range(args.epoch):
         torch.save(state_dict, os.path.join(wandb.run.dir, "model.lincls"))
         wandb.save(os.path.join(wandb.run.dir, "model.lincls"))
     scheduler.step()
-wandb.log({'EVAL/BEST': best_acc}, step=epoch)
+wandb_logger.log({'EVAL/top1': best_acc}, step=epoch)
