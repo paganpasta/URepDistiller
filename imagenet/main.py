@@ -46,7 +46,6 @@ def main(args):
     else:
         # create logger
         logger = setup_logger(output=args.output, color=False, name="SEED")
-
         logger.info('Single GPU mode for debugging.')
 
 

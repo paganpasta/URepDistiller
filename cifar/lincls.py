@@ -37,7 +37,6 @@ parser.add_argument('--arch', choices=list(model_dict.keys()), type=str)  # stud
 parser.add_argument('--wandb-path', type=str, help='in format user/wandbproject/id')
 parser.add_argument('--filename', type=str, default='outputs/.../.../last.pth', help='existing weights to load')
 parser.add_argument('--gpu-id', type=int, default=0)
-parser.add_argument('--key', default=None, help='wandb API key')
 
 args = parser.parse_args()
 torch.manual_seed(0)
