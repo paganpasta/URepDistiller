@@ -68,7 +68,10 @@ wandb_logger = wandb.init(
 try:
     print('Found existing run for the lincls')
     best_acc = torch.load(wandb.restore('model.lincls', run_path=args.wandb_path).name)['acc']
-    wandb_logger.log({'EVAL/top1': best_acc}, step=args.epoch)
+    api = wandb.Api()
+    run = api.run(args.wandb_path)
+    run.summary["top1"] = best_acc
+    run.summary.update()
     exit()
 except:
     print(f'No existing lincls file found at {args.wandb_path}')
@@ -163,4 +166,4 @@ for epoch in range(args.epoch):
         torch.save(state_dict, os.path.join(wandb.run.dir, "model.lincls"))
         wandb.save(os.path.join(wandb.run.dir, "model.lincls"))
     scheduler.step()
-wandb_logger.log({'EVAL/top1': best_acc}, step=epoch)
+wandb.run.summary['top1'] = best_acc
