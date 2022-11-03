@@ -63,7 +63,7 @@ val_loader = DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_w
 model = model_dict[args.arch](num_classes=100).cuda()
 wandb.login(key=os.getenv('KEY'))
 wandb_logger = wandb.init(
-    id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume="must"
+    id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume=True
 )
 try:
     print('Found existing run for the lincls')
@@ -156,7 +156,7 @@ for epoch in range(args.epoch):
     info = 'lincls_train_Epoch:{:03d}/{:03d}\t run_time:{:.3f}\t loss:{:.5f}\t acc:{:.5f}'.format(
         epoch + 1, args.epoch, run_time, loss_record.avg, acc_record.avg)
     print(info)
-    wandb_logger.log({'EVAL/loss': loss_record.avg, 'EVAL/acc': acc_record.avg})
+    wandb_logger.log({'EVAL/loss': loss_record.avg, 'EVAL/acc': acc_record.avg}, step=epoch)
     if acc_record.avg > best_acc:
         best_acc = acc_record.avg
         state_dict = dict(epoch=epoch + 1, state_dict=model.state_dict(), loss=loss_record.avg, acc=acc_record.avg)
