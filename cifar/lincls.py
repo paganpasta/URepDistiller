@@ -65,18 +65,7 @@ wandb.login(key=os.getenv('KEY'))
 wandb_logger = wandb.init(
     id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume=True
 )
-try:
-    print('Found existing run for the lincls')
-    best_acc = torch.load(wandb.restore('model.lincls', run_path=args.wandb_path).name)['acc']
-    api = wandb.Api()
-    run = api.run(args.wandb_path)
-    run.summary["top1"] = best_acc
-    run.summary.update()
-    exit()
-except:
-    print(f'No existing lincls file found at {args.wandb_path}')
-    state_dict = torch.load(wandb.restore(args.filename, run_path=args.wandb_path).name)['model']
-
+state_dict = torch.load(wandb.restore(args.filename, run_path=args.wandb_path).name)['model']
 new_dict = OrderedDict()
 for k, v in state_dict.items():
     if 'module.encoder_q.' in k:
