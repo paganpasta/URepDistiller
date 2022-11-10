@@ -3,10 +3,8 @@
 
 import os
 import time
-import json
 import torch
 import random
-import shutil
 import warnings
 import argparse
 import torch.optim
@@ -20,8 +18,10 @@ from tools.dataset import TSVDataset
 import torch.backends.cudnn as cudnn
 from tools.logger import setup_logger
 import torchvision.transforms as transforms
-from torch.utils.tensorboard import SummaryWriter
-
+from torchvision.datasets import ImageFolder
+import wandb
+from dotenv import load_dotenv
+load_dotenv()
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -30,8 +30,8 @@ model_names = sorted(name for name in models.__dict__
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--output', metavar='DIR',
-                    help='path to output folder')
+parser.add_argument('--wandb-path', type=str, help='in format user/wandbproject/id')
+parser.add_argument('--filename', type=str, default='outputs/.../.../last.pth', help='existing weights to load')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet50',
                     choices=model_names,
                     help='model architecture: ' +
@@ -56,8 +56,8 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--wd', '--weight-decay', default=0., type=float,
                     metavar='W', help='weight decay (default: 0.)',
                     dest='weight_decay')
-parser.add_argument('-p', '--print-freq', default=10, type=int,
-                    metavar='N', help='print frequency (default: 10)')
+parser.add_argument('-p', '--print-freq', default=1000, type=int,
+                    metavar='N', help='print frequency (default: 1000)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
@@ -67,9 +67,6 @@ parser.add_argument('--seed', default=None, type=int,
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 
-parser.add_argument('--pretrained', default='', type=str,
-                    help='path to pretrained checkpoint')
-
 parser.add_argument("--local_rank", type=int, help='local rank for DistributedDataParallel')
 
 best_acc1 = 0
@@ -77,6 +74,8 @@ best_acc1 = 0
 
 def main():
     args = parser.parse_args()
+    args.resume = os.path.join(args.output, 'model.lincls')
+    wandb.login(key=os.getenv('KEY'))
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -96,22 +95,22 @@ def main():
     global logger
     logger = setup_logger(output=args.output, distributed_rank=dist.get_rank(), color=False,
                           name="SEED Linear Evaluation")
+    wandb_logger = None
     if dist.get_rank() == 0:
-        path = os.path.join(args.output, "config.json")
-        with open(path, 'w') as f:
-            json.dump(vars(args), f, indent=2)
-        logger.info("Full config saved to {}".format(path))
+        wandb_logger = wandb.init(
+            id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume=True
+        )
+        logger.info(f'Wandb working dir {wandb.run.dir} \t Args.output {args.output}')
 
     logger.info('world size: {}'.format(dist.get_world_size()))
     logger.info('dist.get_rank(): {}'.format(dist.get_rank()))
     logger.info('local_rank: {}'.format(args.local_rank))
 
-    main_worker(args, logger)
+    main_worker(args, logger, wandb_logger)
 
 
-def main_worker(args, logger):
+def main_worker(args, logger, wandb_logger):
     global best_acc1
-
     # create model
     logger.info("=> creating model '{}'".format(args.arch))
     model = models.__dict__[args.arch]()
@@ -125,29 +124,21 @@ def main_worker(args, logger):
     model.fc.bias.data.zero_()
 
     # load from pre-trained, before DistributedDataParallel constructor
-    if args.pretrained:
-        if os.path.isfile(args.pretrained):
-            logger.info("=> loading checkpoint '{}'".format(args.pretrained))
-            checkpoint = torch.load(args.pretrained, map_location="cpu")
+    logger.info("=> loading state_dict from last.pth")
+    state_dict = torch.load(wandb.restore(args.filename, run_path=args.wandb_path).name, map_location="cpu")['state_dict']
 
-            # rename pre-trained keys
-            state_dict = checkpoint['state_dict']
-            for k in list(state_dict.keys()):
-                # retain only encoder student up to before the embedding layer
-                if k.startswith('module.student') and not k.startswith('module.student.fc'):
-                    # remove prefix
-                    state_dict[k[len("module.student."):]] = state_dict[k]
+    for k in list(state_dict.keys()):
+        # retain only encoder student up to before the embedding layer
+        if k.startswith('module.student') and not k.startswith('module.student.fc'):
+            # remove prefix
+            state_dict[k[len("module.student."):]] = state_dict[k]
 
-                # delete renamed or unused k
-                del state_dict[k]
+        # delete renamed or unused k
+        del state_dict[k]
 
-            args.start_epoch = 0
-            msg = model.load_state_dict(state_dict, strict=False)
-            assert set(msg.missing_keys) == {"fc.weight", "fc.bias"}
-
-            logger.info("=> loaded pre-trained model '{}'".format(args.pretrained))
-        else:
-            logger.info("=> no checkpoint found at '{}'".format(args.pretrained))
+    args.start_epoch = 0
+    msg = model.load_state_dict(state_dict, strict=False)
+    assert set(msg.missing_keys) == {"fc.weight", "fc.bias"}
 
     model = torch.nn.parallel.DistributedDataParallel(model.cuda(), device_ids=[args.local_rank], broadcast_buffers=False)
 
@@ -165,41 +156,35 @@ def main_worker(args, logger):
                                 weight_decay=args.weight_decay)
 
     # optionally resume from a checkpoint
-    if args.resume:
-        if os.path.isfile(args.resume):
-            logger.info("=> loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
-            best_acc1 = checkpoint['best_acc1']
-            model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            logger.info("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
-        else:
-            logger.info("=> no checkpoint found at '{}'".format(args.resume))
-
-    # tensorboard
-    if dist.get_rank() == 0:
-        summary_writer = SummaryWriter(log_dir=args.output)
-    else:
-        summary_writer = None
+    if os.path.exists(os.path.join(args.output, 'model.lincls')):
+        logger.info("=> loading checkpoint '{}'".format(args.resume))
+        checkpoint = torch.load(os.path.join(args.output, 'model.lincls'))
+        args.start_epoch = checkpoint['epoch']
+        best_acc1 = checkpoint['best_acc1']
+        model.load_state_dict(checkpoint['state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        logger.info("=> loaded checkpoint '{}' (epoch {})"
+              .format(args.resume, checkpoint['epoch']))
 
     cudnn.benchmark = True
 
     # Data loading code
-    traintsv = os.path.join(args.data, 'train.tsv')
-    valtsv = os.path.join(args.data, 'test.tsv')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
-
-    train_dataset = TSVDataset(
-        traintsv,
-        transforms.Compose([
+    train_transform = transforms.Compose([
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
-        ]))
+        ])
+    val_transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+        ])
+    train_dataset = ImageFolder(os.path.join(args.data, 'train'), transform=train_transform)
+    val_dataset = ImageFolder(os.path.join(args.data, 'val'), transform=val_transform)
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
 
@@ -210,12 +195,7 @@ def main_worker(args, logger):
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
     val_loader = torch.utils.data.DataLoader(
-        TSVDataset(valtsv, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
+        val_dataset,
         batch_size=args.batch_size // dist.get_world_size(), shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
@@ -237,21 +217,21 @@ def main_worker(args, logger):
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
-        if summary_writer is not None:
-            # tensorboard logger
-            summary_writer.add_scalar('lincls_acc1', acc1, epoch)
-            summary_writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
-
         if dist.get_rank() == 0:
+            # tensorboard logger
+            wandb_logger.log({'EVAL/lr': optimizer.param_groups[0]['lr'], 'EVAL/acc': acc1}, step=epoch)
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
-                'optimizer' : optimizer.state_dict(),
-            }, is_best, filename=os.path.join(args.output, 'lincls_checkpoint_{:04d}.pth.tar'.format(epoch)))
+                'optimizer': optimizer.state_dict(),
+            }, is_best, filename=os.path.join(args.output, 'model.lincls'))
+            wandb.save(os.path.join(wandb.run.dir, "model.lincls"))
             if epoch == args.start_epoch:
                 sanity_check(model.state_dict(), args.pretrained)
+    if dist.get_rank() == 0:
+        wandb.run.summary['top1'] = best_acc1
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
@@ -356,9 +336,8 @@ def validate(val_loader, model, criterion, args):
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        torch.save(state, filename)
 
 
 def sanity_check(state_dict, pretrained_weights):

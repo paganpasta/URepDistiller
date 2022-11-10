@@ -24,10 +24,10 @@ model_names = sorted(name for name in models.__dict__
 
 def main(args):
 
+    wandb_logger = init_wandb(args)
     args.method = 'seed'
     args.resume = os.path.join(args.output, 'last.pth')
     # saving WANDB
-    wandb_logger = init_wandb(args)
 
     if args.distributed:
         torch.cuda.set_device(args.local_rank)
@@ -151,7 +151,7 @@ def main(args):
         # train for one epoch
         loss = train(train_loader, model, soft_cross_entropy, optimizer, epoch, args, logger)
 
-        if dist.get_rank() == 0:
+        if (args.distributed and dist.get_rank() == 0) or not args.distributed:
             wandb_logger.log({'Train/Loss': loss, 'Train/LR': optimizer.param_groups[0]['lr']}, step=epoch)
             logger.info(f'Epoch: {epoch}\t Loss: {loss}\t S-arch: {args.student_arch}\t')
             save_checkpoint({
