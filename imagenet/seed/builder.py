@@ -9,8 +9,8 @@ class SEED(nn.Module):
     and an instance queue.
     Adapted from MoCo, He, Kaiming, et al. "Momentum contrast for unsupervised visual representation learning."
     """
-    def __init__(self, student, teacher, dim=128, K=65536, t=0.07, mlp=False, base_width=1,
-                 temp=1e-4, dist=True, swav_mlp=None, stu='moco'):
+    def __init__(self, student, teacher, dim=128, K=65536, s_temp=0.07, mlp=False, base_width=1,
+                 t_temp=1e-4, dist=True, swav_mlp=None, stu='moco'):
         """
         dim:        feature dimension (default: 128)
         K:          queue size
@@ -22,8 +22,8 @@ class SEED(nn.Module):
         super(SEED, self).__init__()
 
         self.K = K
-        self.t = t
-        self.temp = temp
+        self.t = s_temp
+        self.temp = t_temp
         self.dim = dim
         self.dist = dist
 

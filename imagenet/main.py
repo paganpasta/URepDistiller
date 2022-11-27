@@ -3,7 +3,8 @@ import os
 import time
 import json
 import torch.optim
-import seed.builder
+from seed.builder import SEED
+from others.builder import COS, COSS, DINO
 import torch.nn.parallel
 import seed.models as models
 import torch.distributed as dist
@@ -21,6 +22,12 @@ model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
 
+METHODS = {
+    'seed': SEED,
+    'cos': COS,
+    'coss': COSS,
+    'dino': DINO
+}
 
 def main(args):
 
@@ -57,15 +64,15 @@ def main(args):
     assert args.teacher_arch in models.__dict__
 
     # initialize model object, feed student and teacher into encoders.
-    model = seed.builder.SEED(models.__dict__[args.student_arch],
-                              models.__dict__[args.teacher_arch],
-                              args.dim,
-                              args.queue,
-                              args.temp,
-                              mlp=args.student_mlp,
-                              temp=args.distill_t,
-                              dist=args.distributed,
-                              stu=args.teacher_ssl)
+    model = METHODS[args.method](student=models.__dict__[args.student_arch],
+                                  teacher=models.__dict__[args.teacher_arch],
+                                  dim=args.dim,
+                                  K=args.queue,
+                                  s_temp=args.s_temp,
+                                  mlp=args.student_mlp,
+                                  t_temp=args.t_temp,
+                                  dist=args.distributed,
+                                  stu=args.teacher_ssl)
 
     logger.info(model)
 
@@ -91,7 +98,7 @@ def main(args):
                                     weight_decay=args.weight_decay)
 
     # optionally resume from a checkpoint
-    if os.path.exists(os.path.join(args.output, 'last.pth')):
+    if os.path.exists(args.output):
         if os.path.isfile(args.resume):
             logger.info("=> loading checkpoint '{}'".format(args.resume))
             model = resume_training(args, model, optimizer, logger)
@@ -215,9 +222,11 @@ def train(train_loader, model, criterion, optimizer, epoch, args, logger):
 
         # compute output
         with torch.cuda.amp.autocast(enabled=True):
-
-            logit, label = model(image=images)
-            loss = criterion(logit, label)
+            if args.method == 'seed':
+                logit, label = model(image=images)
+                loss = criterion(logit, label)
+            else:
+                loss = args.beta * model(images)
 
         losses.update(loss.item(), images[0].size(0))
 

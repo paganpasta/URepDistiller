@@ -141,12 +141,12 @@ def parse_opt():
                         type=int,
                         help='queue size; number of negative keys (default: 65536)')
 
-    parser.add_argument('--temp',
+    parser.add_argument('--s-temp',
                         default=0.2,
                         type=float,
                         help='softmax temperature (default: 0.2)')
 
-    parser.add_argument('--distill-t',
+    parser.add_argument('--t-temp',
                         default=1e-4,
                         type=float,
                         help='softmax temperature for distillation (default: 1e-4)')
@@ -170,5 +170,14 @@ def parse_opt():
                         default=False,
                         type=bool,
                         help='use DistributedDataParallel mode or not')
+
+    parser.add_argument("--beta",
+                        default=1.0,
+                        type=float,
+                        help='Scaling certain losses such as COSS DINO')
+
+    parser.add_argument('--method',
+                        default=None,
+                        choices=['seed', 'coss', 'cos', 'dino'])
 
     return parser.parse_args()

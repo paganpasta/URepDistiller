@@ -98,7 +98,8 @@ def main():
     wandb_logger = None
     if dist.get_rank() == 0:
         wandb_logger = wandb.init(
-            id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume=True
+            id=args.wandb_path.split('/')[2], project=os.getenv('PROJECT'), resume=True,
+            tags=[args.method, args.student_arch, args.teacher_arch]
         )
         logger.info(f'Wandb working dir {wandb.run.dir} \t Args.output {args.output}')
 
@@ -125,7 +126,7 @@ def main_worker(args, logger, wandb_logger):
 
     # load from pre-trained, before DistributedDataParallel constructor
     logger.info("=> loading state_dict from last.pth")
-    state_dict = torch.load(wandb.restore(args.filename, run_path=args.wandb_path).name, map_location="cpu")['state_dict']
+    state_dict = torch.load(os.path.join(args.output, 'last.pth'), map_location="cpu")['state_dict']
 
     for k in list(state_dict.keys()):
         # retain only encoder student up to before the embedding layer
