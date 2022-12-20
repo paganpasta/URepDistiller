@@ -128,7 +128,8 @@ def load_moco_teacher_encoder(args, model, logger, distributed=True):
                 logger.info("Teacher Param {} copyed from =====================> {}"
                             .format(key.replace('module.encoder_q', 'teacher'), key))
 
-    model.load_state_dict(model_checkpoint)
+    miss_keys = model.load_state_dict(model_checkpoint, strict=args.match_base)
+    print(args.match_base, miss_keys)
     return model
 
 

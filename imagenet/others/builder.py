@@ -14,7 +14,7 @@ class OTHERS(nn.Module):
     """
     For methods such as DINO, COS and COSS
     """
-    def __init__(self, student, teacher, dim=128, t_temp=0.02, s_temp=0.7, **kwargs):
+    def __init__(self, student, teacher, dim=128, t_temp=0.02, s_temp=0.7, match_base=False, **kwargs):
         """
         dim:        IGNORED
         t_temp:  teacher temperature
@@ -28,22 +28,25 @@ class OTHERS(nn.Module):
 
         # create the Teacher/Student encoders
         # num_classes is the output fc dimension
-        student = student(num_classes=dim)
+        student = student(num_classes=1)
         teacher = teacher(num_classes=dim)
 
-        t_dims = teacher.fc.in_features
         s_dims = student.fc.in_features
+        t_dims = teacher.fc.in_features
+
+        if match_base:
+            dim = t_dims
+
         student.fc = nn.Identity()
-        teacher.fc = nn.Identity()
 
         self.student = student
         self.teacher = teacher
 
-        if s_dims != t_dims:
+        if s_dims != dim:
             self.proj = nn.Sequential(
-                nn.Linear(s_dims, t_dims),
+                nn.Linear(s_dims, dim),
                 nn.ReLU(inplace=True),
-                nn.Linear(t_dims, t_dims)
+                nn.Linear(dim, dim)
             )
         else:
             self.proj = None
@@ -56,8 +59,12 @@ class OTHERS(nn.Module):
 class COSS(OTHERS):
     def forward(self, x):
         s_emb = self.student(x)
+        if self.proj:
+            s_emb = self.proj(s_emb)
+
         with torch.no_grad():
             t_emb = self.teacher(x)
+        
         f_sim = dot_p(t_emb, s_emb, self.t_temp, self.s_temp)
         s_sim = dot_p(t_emb.T, s_emb.T, self.t_temp, self.s_temp)
         return f_sim.mean() + s_sim.mean()
@@ -66,8 +73,12 @@ class COSS(OTHERS):
 class COS(OTHERS):
     def forward(self, x):
         s_emb = self.student(x)
+        if self.proj:
+            s_emb = self.proj(s_emb)
+
         with torch.no_grad():
             t_emb = self.teacher(x)
+        
         f_sim = dot_p(t_emb, s_emb, self.t_temp, self.s_temp)
         return f_sim.mean()
 
@@ -76,6 +87,9 @@ class DINO(OTHERS):
 
     def forward(self, x):
         s_emb = self.student(x)
+        if self.proj:
+            s_emb = self.proj(s_emb)
+        
         with torch.no_grad():
             t_emb = self.teacher(x)
         s_feat = s_emb / self.s_temp

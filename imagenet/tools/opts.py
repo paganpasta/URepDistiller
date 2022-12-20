@@ -37,6 +37,10 @@ def parse_opt():
                         help='teacher encoder architecture: ' +
                             ' | '.join(model_names) +
                             ' (default: resnet50)')
+    
+    parser.add_argument('--match-base',
+                        action='store_true',
+                        help='If true, then proj head of teacher is ignored. KD works at pooled features')
 
     parser.add_argument('-s',
                         '--teacher_ssl',
