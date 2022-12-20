@@ -29,11 +29,10 @@ METHODS = {
     'dino': DINO
 }
 
-def main(args):
 
-    wandb_logger = init_wandb(args)
-    args.method = 'seed'
+def main(args):
     args.resume = os.path.join(args.output, 'last.pth')
+    wandb_logger = init_wandb(args)
     # saving WANDB
 
     if args.distributed:
@@ -118,9 +117,6 @@ def main(args):
         else:
             logger.info("wrong distillation checkpoint.")
 
-    # clear unnecessary weights
-    torch.cuda.empty_cache()
-
     if args.teacher_ssl == 'swav': augmentation = swav_aug
     elif args.teacher_ssl == 'simclr': augmentation = simclr_aug
     elif args.teacher_ssl == 'moco' and args.student_mlp: augmentation = mocov2_aug
@@ -156,29 +152,33 @@ def main(args):
         adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        loss = train(train_loader, model, soft_cross_entropy, optimizer, epoch, args, logger)
+        loss, method_time = train(train_loader, model, soft_cross_entropy, optimizer, epoch, args, logger)
 
         if (args.distributed and dist.get_rank() == 0) or not args.distributed:
-            wandb_logger.log({'Train/Loss': loss, 'Train/LR': optimizer.param_groups[0]['lr']}, step=epoch)
-            logger.info(f'Epoch: {epoch}\t Loss: {loss}\t S-arch: {args.student_arch}\t')
+            wandb_logger.log({'Train/Loss': loss,
+                              'Train/LR': optimizer.param_groups[0]['lr'],
+                              'Train/Time':method_time},
+                             step=epoch)
+            logger.info(f'Epoch: {epoch}\t Loss: {loss}\t S-arch: {args.student_arch}\t Method time: {method_time:.4f}')
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.student_arch,
                 'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-            }, filename=args.resume)
+            })
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args, logger):
     batch_time = AverageMeter('Batch Time', ':5.3f')
     data_time = AverageMeter('Data Time', ':5.3f')
+    method_time = AverageMeter('Method Time', ':5.4f')
     losses = AverageMeter('Loss', ':5.3f')
     lr = ValueMeter('LR', ':5.3f')
     mem = ValueMeter('GPU Memory Used', ':5.0f')
 
     progress = ProgressMeter(
         len(train_loader),
-        [batch_time, data_time, lr, losses, mem],
+        [batch_time, data_time, method_time, lr, losses, mem],
         prefix="Epoch: [{}]".format(epoch))
 
     def get_learning_rate(optimizer):
@@ -221,12 +221,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args, logger):
         data_time.update(time.time() - end)
 
         # compute output
+        method_start_time = time.time()
         with torch.cuda.amp.autocast(enabled=True):
             if args.method == 'seed':
                 logit, label = model(image=images)
                 loss = criterion(logit, label)
             else:
                 loss = args.beta * model(images)
+        method_time.update(time.time()-method_start_time)
 
         losses.update(loss.item(), images[0].size(0))
 
@@ -243,7 +245,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, logger):
         if i % args.print_freq == 0:
             progress.display(i, logger)
 
-    return losses.avg
+    return losses.avg, method_time.avg
 
 
 if __name__ == '__main__':

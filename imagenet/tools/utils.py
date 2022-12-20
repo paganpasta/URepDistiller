@@ -28,12 +28,11 @@ class GaussianBlur(object):
         return x
 
 
-def save_checkpoint(state, filename='checkpoint.pth.tar'):
+def save_checkpoint(state):
+    #stores in wandb run dir
     save_file = os.path.join(wandb.run.dir, 'last.pth')
     torch.save(state, save_file)
     wandb.save(save_file)
-    ##local save
-    torch.save(state, filename)
 
 
 class AverageMeter(object):
@@ -196,7 +195,7 @@ def resume_training(args, model, optimizer, logger):
 
 def init_wandb(args):
     is_resume = False
-    if os.path.exists(args.output):
+    if os.path.exists(os.path.join(args.output, 'run.id')):
         is_resume = "must",
         run_id = open(f"{args.output}/run.id", 'r').read()
     else:
@@ -208,14 +207,16 @@ def init_wandb(args):
         wandb.login(key=os.getenv('KEY'))
         wandb_logger = wandb.init(
             project=os.getenv('PROJECT'), entity=os.getenv('ENTITY'), resume=is_resume, id=run_id,
-            tags=[args.method, args.student_arch, args.teacher_arch], group='IMAGENET', config=args
+            tags=[args.method, args.student_arch, args.teacher_arch], group='IMAGENET', config=args,
+            dir=args.output
         )
         open(f'{args.output}/run.id', 'w').write(run_id)
     elif not args.distributed:
         wandb.login(key=os.getenv('KEY'))
         wandb_logger = wandb.init(
             project=os.getenv('PROJECT'), entity=os.getenv('ENTITY'), resume=is_resume, id=run_id,
-            tags=[args.method, args.student_arch, args.teacher_arch], group='IMAGENET', config=args
+            tags=[args.method, args.student_arch, args.teacher_arch], group='IMAGENET', config=args,
+            dir=args.output
         )
         open(f'{args.output}/run.id', 'w').write(run_id)
 

@@ -2,8 +2,12 @@
 .idea/
 cifar/data/
 cifar/output*/
+cifar/wandb/
+cifar/wandb/*
 imagenet/data/
 imagenet/output*/
+imagenet/wandb/
+imagenet/wandb/*
 cifar/.env
 imagenet/.env
 
